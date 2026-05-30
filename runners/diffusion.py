@@ -105,6 +105,7 @@ class Diffusion(object):
         mat = scipy.io.loadmat(path)
         
         mask = None
+        y_0_real = None
         mat['img_clean'] = mat['img_clean']
         mat['mask_10'] = mat['mask_10']
         mat['mask_20'] = mat['mask_20']
@@ -146,18 +147,27 @@ class Diffusion(object):
             from functions.svd_replacement import Denoising
             H_funcs = Denoising(config.data.channels, config.data.image_size, self.device)
             img_clean = torch.from_numpy(np.float32(mat['img_clean'])).permute(2, 0, 1).unsqueeze(0)
-        
+            y_0_real = (
+                torch.from_numpy(np.float32(mat['y_0_real'])).permute(2, 0, 1).unsqueeze(0)
+                if 'y_0_real' in mat else None
+            )
+
         ## to account for scaling to [-1,1]
-        args.sigma_0 = 2 * args.sigma_0 
+        args.sigma_0 = 2 * args.sigma_0
         sigma_0 = args.sigma_0
-        
+
         x_orig = img_clean
         x_orig = x_orig.to(self.device)
 
         x_orig = data_transform(self.config, x_orig)
 
-        y_0 = H_funcs.H(x_orig) # (1, 629930) only include the konwn pixel for completion
-        y_0 = y_0 + sigma_0 * torch.randn_like(y_0)  #add noise on the konwn pixel for completion
+        if y_0_real is not None:
+            # Use actual noisy observation instead of synthetically adding Gaussian noise
+            y_0_real = data_transform(self.config, y_0_real.to(self.device))
+            y_0 = H_funcs.H(y_0_real)
+        else:
+            y_0 = H_funcs.H(x_orig) # (1, 629930) only include the konwn pixel for completion
+            y_0 = y_0 + sigma_0 * torch.randn_like(y_0)  #add noise on the konwn pixel for completion
 
         ## in this operation, the known pixels remain unchanged, and the unknown pixels are filled with 0, which is essentially a rearrangement process for completion
         pinv_y_0 = H_funcs.H_pinv(y_0).view(y_0.shape[0], config.data.channels, self.config.data.image_size, self.config.data.image_size) 

@@ -2,10 +2,10 @@ data:
     dataset: "msi"
     training_dataset: "CelebA_HQ"
     root:  "./exp/datasets/ood_msi"
-    filename: "Omsi_1.mat"
+    filename: "bcars_denoising.mat"
     category: ""
-    image_size: 256 
-    channels: 32
+    image_size: 320
+    channels: 695
     logit_transform: false
     uniform_dequantization: false
     gaussian_dequantization: false
@@ -16,7 +16,7 @@ data:
 
 model:
     type: "dip"
-    iter_number: 0
+    iter_number: 1
     iter_number_tail: 0
     use_dip: True
     reinit: false
