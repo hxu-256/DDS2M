@@ -1,2 +1,5 @@
 results/*
 *.mat
+.claude/
+exp/*
+run_logs/*

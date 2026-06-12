@@ -1,0 +1,49 @@
+data:
+  category: ''
+  channels: 685
+  dataset: msi
+  filename: preprocessed_nofilter_111725_male-phe-conditioned_ABR14(WT)_02.mat
+  gaussian_dequantization: false
+  image_size: 448
+  logit_transform: false
+  num_workers: 1
+  out_of_dist: true
+  random_flip: true
+  rescaled: true
+  root: /mnt/d/GaTech Dropbox/Haoyu Xu/workspace/crikit3_denoise/2025_Celegans/data/20251111/preprocessed_vst_nomedian/mat_whittaker_p0.05
+  training_dataset: CelebA_HQ
+  uniform_dequantization: false
+diffusion:
+  beta_end: 0.005
+  beta_schedule: linear
+  beta_start: 0.0001
+  num_diffusion_timesteps: 2000
+model:
+  attn_resolutions:
+  - 16
+  ch: 128
+  ch_mult:
+  - 1
+  - 1
+  - 2
+  - 2
+  - 4
+  - 4
+  dropout: 0.0
+  ema: true
+  ema_rate: 0.999
+  in_channels: 3
+  iter_number: 1
+  iter_number_tail: 0
+  lr: 0.0005
+  num_res_blocks: 2
+  out_ch: 3
+  point: 0
+  reinit: false
+  resamp_with_conv: true
+  type: dip
+  use_dip: true
+  var_type: fixedsmall
+sampling:
+  batch_size: 1
+  last_only: true

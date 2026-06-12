@@ -12,7 +12,7 @@ torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 from runners.diffusion import Diffusion
 torch.set_printoptions(sci_mode=False)
-torch.cuda.set_device(1)
+torch.cuda.set_device(int(os.environ.get('DDS2M_GPU', '0')))
 
 def parse_args_and_config():
     parser = argparse.ArgumentParser(description=globals()["__doc__"])

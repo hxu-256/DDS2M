@@ -83,3 +83,19 @@ main_denoising.py
 4. The predicted clean image `x0_t` is plugged into the DDRM posterior update (Eq. 13), which conditions on the observations `y_0` via the SVD of the degradation operator `H`.
 
 **VS2M low-rank decomposition**: the model factorizes the HSI as a sum of `rank` outer products — each spatial map (from a skip/U-Net DIP) dotted with a spectral signature (from an FCN). This is the "Spatio-Spectral" in DDS2M.
+
+## BCARS experimental-data runs (status 2026-06-12)
+
+This repo is being used to denoise **VST-whitened experimental BCARS cubes** (not the stock MSI demos). Big-picture context lives in `../note.md` and `../AGENTS.md`; this section is the DDS2M-specific summary.
+
+**Data**: `../2025_Celegans/data/20251111/preprocessed_vst_nomedian/mat_whittaker_p0.05/` (made by `h5tomat_detrend.py`, TT=6 → side divisible by 64). Per-spectrum **symmetric Whittaker** baseline (λ=1e5, dispersive-safe) + **robust_symmetric** norm: `s=max(|p0.05|,|p99.95|)`, `[-s,s]→[0,1]`, so the dispersive VST-zero maps to 0.5 and the cube is exactly **zero-centered (mean 0.500)** — ideal for the `2X-1` transform. `channels=685`.
+
+**How the runner consumes it** (`runners/diffusion.py`): for `--deg denoising<σ>` it loads `y_0_real` (the real noisy obs) when present and uses it directly instead of synthesizing noise (diffusion.py:145-170). `sigma_0` is **doubled** internally for the [-1,1] range (diffusion.py:156). σ is data-driven and matches the flags: σ̂ ≈ 0.0735 glycerol / 0.1293 bead → runs use `--deg denoising0.07 / 0.13` (worm 0.11–0.12). Launch via `run_all_denoising.sh` (4 cubes / 2 GPUs, per-cube `configs/msi_denoising_<name>.yml`). Defaults: rank 10, **beta 0 (no TV)**, iter_number 1, lr 5e-4, start_point 1000, timesteps 2000.
+
+**Symptom**: DDS2M comes out **noisier / wrong-shaped on bead & C.elegans** (glycerol is OK) while S2DIP/`dip_baseline.py` is qualitatively fine. Leading causes, in order:
+
+1. **No valid metric / stopping**: every exp `.mat` has `img_clean = all zeros` (CONFIRMED) → logged PSNR (~6 dB) is vs zeros, so `x_best`/`psnr_best` are NOISE-selected and there is no real early stop. **Fix first**: build a glycerol pseudo-GT (FOV-mean broadcast into `img_clean`) so PSNR is real, calibrate a fixed step budget, then apply to bead/worm with no-reference residual checks.
+2. **Peak clipping/clamp**: `CLIP_TO_01=True` in preprocessing flat-tops the sparse bead/worm Raman peaks (≈0.1% of pixels, ~4× over p99.95) at the input, and `inverse_data_transform` ends with `clamp(X,0,1)` (`utils/data_utils.py:33`, `rescaled:true`) so any value >1 is destroyed at the **output** too. Glycerol peaks aren't sparse (overshoot ~1.4×) → survives. Regenerate bead/worm with `CLIP_TO_01=False` AND widen the symmetric range `s` to enclose the peak (then pass the correspondingly smaller σ).
+3. **No regularizer**: `beta=0` → no TV (S2DIP has spectral-TV + early stop). Try `--beta 1e-2` and/or `iter_number 3–5`; sweep `rank 6/10/15`. Only after (1).
+
+**Watch out**: `glycerol_pad128` was zero-padded 64→128; zero pad → −1 after `2X-1` skews global stats (log shows mean ~3.16) — pad with 0.5 or use native 64×64 instead. Inspect outputs in `visualize_results_exp.ipynb`.
