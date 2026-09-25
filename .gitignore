@@ -3,3 +3,7 @@ results/*
 .claude/
 exp/*
 run_logs/*
+autotune/
+configs/sim_multifov/
+__pycache__/
+*.pyc
