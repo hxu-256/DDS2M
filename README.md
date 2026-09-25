@@ -4,21 +4,7 @@ Fork of [miaoyuchun/DDS2M](https://github.com/miaoyuchun/DDS2M) (Miao et al., *D
 Self-Supervised Denoising Diffusion Spatio-Spectral Model for Hyperspectral Image Restoration*,
 ICCV 2023), adapted to denoise broadband CARS (BCARS) hyperspectral cubes on
 variance-stabilized data, as used in *Denoising broadband CARS hyperspectral images on
-variance-stabilized data: a unified benchmark* ([journal], [year]).
-
-The upstream README follows below.
-
-## What this fork changes
-
-Four files differ from upstream; everything else is additive.
-
-| Change | Why |
-|---|---|
-| `runners/diffusion.py` (~16 lines) | Upstream takes a **clean** cube, applies the degradation operator H and adds synthetic Gaussian noise to build the observation. A real measurement has no clean counterpart, so the loader now reads `y_0_real` from the `.mat` and uses it directly (`y_0 = H(y_0_real)`). Without the key, upstream's synthetic path still runs. |
-| `main_denoising.py` (4 lines) | GPU index from `$DDS2M_GPU` instead of a hard-coded `cuda:7`; dropped an unused tensorboard import. |
-| `configs/msi_denoising.yml` | Cube geometry for BCARS: `image_size` and `channels` (695 simulated / 685 experimental bands) instead of upstream's 256×256×32 demo, and `iter_number: 1`. |
-| `requirements.txt` | Newer numpy/scipy/matplotlib. |
-| `estimate_variance.py`, `npz2mat.py`, `configs/msi_denoising_*.yml` | New: per-cube noise estimation, packing simulated `.npz` into the expected `.mat`, and one config per cube. |
+variance-stabilized data: a unified benchmark*.
 
 Note the `[0, 1]` clamp in `inverse_data_transform` is **upstream behaviour** (it comes with
 `rescaled: true`). It is why the input must be normalized into `[0, 1]` and why peaks that
@@ -38,13 +24,8 @@ exceed the normalization ceiling come back bounded.
 `npz2mat.py` writes this from a simulated `.npz`; for experimental data the pipeline
 repository's `h5tomat_detrend.py` writes the same schema.
 
-Two constraints from the network: the cube must be **square**, and the side must survive the
-U-Net's ×64 downsampling — use a side divisible by 16 and **at least 128**, otherwise the
-bottleneck reaches 1×1 and BatchNorm fails. Reflection-pad small fields of view.
-
 **2. Estimate the noise level.** `python estimate_variance.py` reports σ̂ for the cube; it goes
-into `--deg denoising<σ̂>`. On variance-stabilized data σ differs per cube (0.067 for our
-simulated cubes, 0.0735 glycerol, 0.1293 bead, 0.1144 worm), so this is not optional.
+into `--deg denoising<σ̂>`. 
 
 **3. Write a config** — copy `configs/msi_denoising.yml` and set `data.root` (folder holding
 the `.mat`), `data.filename`, `data.image_size` (the side) and `data.channels` (bands).
@@ -72,79 +53,12 @@ supply a measurement-based pseudo-ground-truth. De-normalize with
 `phys = x * (norm_max - norm_min) + norm_min`.
 
 Runtime is roughly 1–2 h per cube on one modern GPU at `--timesteps 2000`.
-
-## Settings used in the paper
-
-| cube | rank | η | start_point | `--deg` | cube taken |
-|---|---|---|---|---|---|
-| simulated (5 FOVs) | 10 | 1.0 | 500 | denoising0.067 | `x_2000.mat` → `x_best` |
-| glycerol (reflection-padded to 128) | 6 | 1.0 | 1000 | denoising0.0735 | `x_best` vs FOV-mean pseudo-GT |
-| 1 µm bead (256) | 10 | 0.5 | 1000 | denoising0.1293 | checkpoint at step 1800 |
-| *C. elegans* (448) | 10 | 0.5 | 1000 | denoising0.1144 | checkpoint at step 1900 |
-
-`--timesteps 2000`, `lr 5e-4`, linear β from 1e-4 to 5e-3 throughout. The experimental cubes
-were stopped at an intermediate checkpoint rather than the final iterate; the harness that
-saved that trajectory is not part of this repository, so reproducing those exactly means
-re-adding a checkpoint hook. `HYPERPARAMETERS.md` explains what `--deg`, `--rank`, `--eta` and
-`--start_point` do.
-
+<!-- 
 ## Related
 
 - Processing pipeline (VST, detrending, CCV, phase retrieval) and the paper's metrics:
   [pipeline repo URL]
-- Denoised cubes and metric tables: [Zenodo DOI]
+- Denoised cubes and metric tables: [Zenodo DOI] -->
 
 Please cite Miao et al. (ICCV 2023) alongside our paper if you use this code.
-
----
-# DDS2M: Self-Supervised Denoising Diffusion Spatio-Spectral Model for Hyperspectral Image Restoration
-This repository contains the code for the paper 
-
-**[[ICCV 2023] DDS2M: Self-Supervised Denoising Diffusion Spatio-Spectral Model for Hyperspectral Image Restoration][1]**  
-[Yuchun Miao][myc], [Lefei Zhang][zlf], [Liangpei Zhang][zlp], [Dacheng Tao][tdc]   
-
-<div align="center">
-  <img src="figures/motivation.png" width="500px" />
-</div>
-
-## Installation
-Clone this repository:
-```
-git clone git@github.com:miaoyuchun/DDS2M.git
-```
-
-The project was developed using Python 3.7.10, and torch 1.12.1.
-You can build the environment via pip as follow:
-
-```
-pip3 install -r requirements.txt
-```
-
-## Running Experiments
-We provide code to reproduce the main results on HSI completion, HSI denoising, and HSI super-resolution as follows:
-```
-python main_completion.py
-python main_denoising.py
-python main_sisr.py
-```
-
-## Citation and Acknowledgement
-If you find our work useful in your research, please cite:
-
-```
-@article{miao2023dds2m,
-  title={DDS2M: Self-Supervised Denoising Diffusion Spatio-Spectral Model for Hyperspectral Image Restoration},
-  author={Miao, Yuchun and Zhang, Lefei and Zhang, Liangpei and Tao, Dacheng},
-  journal={arXiv preprint arXiv:2303.06682},
-  year={2023}
-}
-```
-
-The code is highly based on the repository of [DS2DP](https://github.com/miaoyuchun/DS2DP), [DDRM](https://github.com/bahjat-kawar/ddrm), and [DDPM](https://github.com/lucidrains/denoising-diffusion-pytorch).
-
-
-[1]: https://arxiv.org/abs/2303.06682
-[myc]: https://scholar.google.com/citations?user=-ec3mwUAAAAJ&hl=en
-[zlf]: https://scholar.google.com/citations?user=BLKHwNwAAAAJ&hl=en
-[zlp]: https://scholar.google.com/citations?user=vzj2hcYAAAAJ&hl=en
-[tdc]: https://scholar.google.com/citations?user=RwlJNLcAAAAJ&hl=en
+Upstream documentation: miaoyuchun/DDS2M (https://github.com/miaoyuchun/DDS2M) — installation, the completion and super-resolution tasks, and the original citation.
